@@ -1,0 +1,237 @@
+#include <iostream>
+#include <fstream>
+#include <cstring>
+#include <conio.h>
+#include <windows.h>
+
+using namespace std;
+
+const int width = 20;
+const int height = 20;
+int x, y, fruitX, fruitY, score;
+int tailX[100], tailY[100];
+int nTail;
+enum Direction { STOP = 0, LEFT, RIGHT, UP, DOWN };
+Direction dir;
+
+// Struct to store user data
+struct User {
+    char name[50];
+    int highscore;
+};
+
+// Dynamically allocated array of users
+User* users = nullptr;
+int userCount = 0;
+
+char currentUser[50];
+
+// Function to load high scores from file
+void LoadHighScores() {
+    ifstream file("highscores.txt");
+    if (file.is_open()) {
+        file >> userCount;
+        users = new User[userCount];
+        for (int i = 0; i < userCount; ++i) {
+            file >> users[i].name >> users[i].highscore;
+        }
+        file.close();
+    } else {
+        userCount = 0;
+        users = new User[100]; // Allocate memory for up to 100 users initially
+    }
+}
+
+// Function to save high scores to file
+void SaveHighScores() {
+    ofstream file("highscores.txt");
+    if (file.is_open()) {
+        file << userCount << endl;
+        for (int i = 0; i < userCount; ++i) {
+            file << users[i].name << " " << users[i].highscore << endl;
+        }
+        file.close();
+    }
+}
+
+// Find user by name
+int FindUser(const char* name) {
+    for (int i = 0; i < userCount; ++i) {
+        if (strcmp(users[i].name, name) == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+// Function to display user info
+void DisplayUserInfo() {
+    cout << "Enter your name: ";
+    cin >> currentUser;
+
+    int index = FindUser(currentUser);
+    if (index != -1) {
+        cout << "Welcome back, " << currentUser << "!" << endl;
+        cout << "Your highest score is: " << users[index].highscore << endl;
+    } else {
+        cout << "Welcome, " << currentUser << "! This is your first time playing." << endl;
+        strcpy(users[userCount].name, currentUser);
+        users[userCount].highscore = 0;
+        userCount++;
+    }
+}
+
+void Setup() {
+    dir = STOP;
+    x = width / 2;
+    y = height / 2;
+    fruitX = rand() % width;
+    fruitY = rand() % height;
+    score = 0;
+    nTail = 0;
+}
+
+void Draw() {
+    system("cls");
+    cout << "================== SNAKE GAME ==================" << endl;
+    cout << "Controls: Arrow Keys for movement" << endl;
+    cout << "===============================================" << endl;
+
+    for (int i = 0; i < width + 2; i++)
+        cout << "#";
+    cout << endl;
+
+    for (int i = 0; i < height; i++) {
+        for (int j = 0; j < width; j++) {
+            if (j == 0)
+                cout << "#";
+            if (i == y && j == x)
+                cout << "O";
+            else if (i == fruitY && j == fruitX)
+                cout << "F";
+            else {
+                bool isTail = false;
+                for (int k = 0; k < nTail; k++) {
+                    if (tailX[k] == j && tailY[k] == i) {
+                        cout << "o";
+                        isTail = true;
+                    }
+                }
+                if (!isTail)
+                    cout << " ";
+            }
+            if (j == width - 1)
+                cout << "#";
+        }
+        cout << endl;
+    }
+
+    for (int i = 0; i < width + 2; i++)
+        cout << "#";
+    cout << endl;
+
+    cout << "Score: " << score << endl;
+    cout << "===============================================" << endl;
+}
+
+void Input() {
+    if (_kbhit()) {
+        switch (_getch()) {
+        case 224:
+            switch (_getch()) {
+            case 72:
+                dir = UP;
+                break;
+            case 80:
+                dir = DOWN;
+                break;
+            case 75:
+                dir = LEFT;
+                break;
+            case 77:
+                dir = RIGHT;
+                break;
+            }
+            break;
+        }
+    }
+}
+
+void Logic() {
+    int prevX = tailX[0];
+    int prevY = tailY[0];
+    int prev2X, prev2Y;
+    tailX[0] = x;
+    tailY[0] = y;
+
+    for (int i = 1; i < nTail; i++) {
+        prev2X = tailX[i];
+        prev2Y = tailY[i];
+        tailX[i] = prevX;
+        tailY[i] = prevY;
+        prevX = prev2X;
+        prevY = prev2Y;
+    }
+
+    switch (dir) {
+    case LEFT:
+        x--;
+        break;
+    case RIGHT:
+        x++;
+        break;
+    case UP:
+        y--;
+        break;
+    case DOWN:
+        y++;
+        break;
+    }
+
+    if (x >= width) x = 0; else if (x < 0) x = width - 1;
+    if (y >= height) y = 0; else if (y < 0) y = height - 1;
+
+    if (x == fruitX && y == fruitY) {
+        score += 10;
+        fruitX = rand() % width;
+        fruitY = rand() % height;
+        nTail++;
+    }
+
+    for (int i = 0; i < nTail; i++) {
+        if (tailX[i] == x && tailY[i] == y) {
+            cout << "====================" << endl;
+            cout << "       GAME OVER!   " << endl;
+            cout << "Final Score: " << score << endl;
+
+            int index = FindUser(currentUser);
+            if (index != -1 && score > users[index].highscore) {
+                cout << "Congratulations! You've set a new high score!" << endl;
+                users[index].highscore = score;
+            } else if (index != -1) {
+                cout << "Your highest score remains: " << users[index].highscore << endl;
+            }
+
+            SaveHighScores();
+            system("pause");
+            exit(0);
+        }
+    }
+}
+
+int main() {
+    LoadHighScores();
+    DisplayUserInfo();
+    system("pause");
+    Setup();
+
+    while (true) {
+        Draw();
+        Input();
+        Logic();
+        Sleep(100);
+    }
+
+    delete[] users; // Free dynamically allocated memory
+    return 0;
+}
